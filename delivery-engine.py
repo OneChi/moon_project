@@ -54,6 +54,10 @@ TEST_DATA = [
     "{\"action\": \"send_package\", \"timestamp\": \"2142-08-24T02:23:12+0100\", \"sender_id\": 42, \"recipient_id\": 21, \"package_id\": 2834, \"package_type\": \"personal\"}",
     "{\"action\": \"send_package\", \"timestamp\": \"2142-09-01T02:45:12+0100\", \"sender_id\": 42, \"recipient_id\": 21, \"package_id\": 2834, \"package_type\": \"personal\"}",
     "{\"action\": \"update_preference\", \"timestamp\": \"2142-08-24T23:40:12Z\", \"recipient_id\": 21, \"personal_package\": false, \"marketing_package\": false}",
+    "{\"action\": \"update_preference\", \"timestamp\": \"2142-08-24T23:40:12Z\", \"recipient_id\": 21, \"personal_package\": false, \"marketing_package\": false}",
+    "{\"action\": \"update_preference\", \"timestamp\": \"2142-08-24T23:40:12Z\", \"recipient_id\": 21, \"personal_package\": false, \"marketing_package\": false}",
+
+
 ]
 
 ACTIONS = ('send_package', 'update_preference')
@@ -135,8 +139,8 @@ class Recipient:
 class MessageServer:
 
     def __init__(self, *args, **kwargs):
-        self.recipients = {}
-        self.packages = {}
+        self._recipients = {}
+        self._packages = []
 
     @staticmethod 
     def _validate_json(input: str) -> dict:
@@ -161,23 +165,28 @@ class MessageServer:
         if input.get('marketing_package') is not None:
             recipient['marketing_package'] = input.get('marketing_package')
 
-        if self.recipients.get(str(recipient['id']), None) is None:
-            self.recipients[str(recipient['id'])] = recipient
-        self.recipients[str(recipient['id'])].update(recipient)
-        self._print_to_std(self.recipients[str(recipient['id'])])
+        if self._recipients.get(str(recipient['id']), None) is None:
+            self._recipients[str(recipient['id'])] = recipient
+        self._recipients[str(recipient['id'])].update(recipient)
         
+        if input not in self._packages:
+            self._print_to_std(input)
+            self._packages.append(input)
 
     def _process_package(self, input: dict):
-        recipient = {
-            'id' : input.get('recipient_id'), 
-            'personal_package': True,
-            'marketing_package' : True
-        }
-        if self.recipients.get(str(recipient['id']), None) is None:
-            self.recipients[str(recipient['id'])] = recipient
-        self._print_to_std(self.recipients[str(recipient['id'])])
-
-
+        recipient_id = str(input.get('recipient_id'))
+        if self._recipients.get(recipient_id, None) is None:
+            recipient = {
+                'id' : input.get('recipient_id'), 
+                'personal_package': True,
+                'marketing_package' : True
+            }
+            self._recipients[str(recipient['id'])] = recipient
+        
+        if input not in self._packages:
+            recipient = self._recipients[recipient_id]
+            self._print_to_std(input)
+            self._packages.append(input)
 
 
     def process_input(self, input: str):
@@ -192,11 +201,12 @@ class MessageServer:
 def server():
     start = time.time()
     server_instance = MessageServer()
-
+    
+    
+    # for line in stdin:
     for item in TEST_DATA:
         server_instance.process_input(item)
 
-    # for line in stdin:
 
     print(f'Processing took: {(time.time() - start):.2f} seconds')
 
