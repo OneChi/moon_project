@@ -1,5 +1,6 @@
 from sys import stdin
 from dataclasses import dataclass, asdict
+from types import NoneType
 import typing
 
 
@@ -82,13 +83,28 @@ class SendPackage(Base):
 class UpdatePackage(Base):
     recipient_id: int
 
-    personal_package : bool = False
-    marketing_package: bool = False
+    AT_LEAST_ONE_REQUIRED_FIELDS = (
+        'personal_package',
+        'marketing_package',
+    )
+
+    personal_package : bool | NoneType = None
+    marketing_package: bool | NoneType = None
+
+    def validate(self):
+        counter = 0
+        for item in self.AT_LEAST_ONE_REQUIRED_FIELDS:
+            value = getattr(self, item)
+            if value is None:
+                counter+=1
+            if  counter == len(self.AT_LEAST_ONE_REQUIRED_FIELDS):
+                raise Exception('At least one field required')
+        return super().validate()
 
 
 base = SendPackage("send_package", "sssr", 12,123,1234,'personal')
 base.validate()
-data = {'action': 'update_package', 'timestamp': '12321', 'recipient_id': 1, 'personal_package' : True}
+data = {'action': 'update_package', 'timestamp': '12321', 'recipient_id': 1}
 update = UpdatePackage(**data)
 update.validate()
 print(asdict(update))
@@ -105,5 +121,9 @@ print(asdict(update))
 # send_package correct - SendPackage("send_package", "sssr", 12,123,1234,'personal')
 # Test package_update 4
 # data = {'action': 'update_package', 'timestamp': '12321', 'recipient_id': 1, 'personal_package' : True}
+# update = UpdatePackage(**data)
+# update.validate()
+# test validate "at least one field required"
+# data = {'action': 'update_package', 'timestamp': '12321', 'recipient_id': 1}
 # update = UpdatePackage(**data)
 # update.validate()
