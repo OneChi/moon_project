@@ -49,13 +49,10 @@ import json
 TEST_DATA = [
     "{\"action\": \"send_package\", \"timestamp\": \"2142-08-23T02:40:12-0700\", \"sender_id\": 5, \"recipient_id\": 21, \"package_id\": 18571, \"package_type\": \"marketing\"}",
     "{\"action\": \"send_package\", \"timestamp\": \"2142-08-24T16:20:12-0700\", \"sender_id\": 3, \"recipient_id\": 49, \"package_id\": 1756, \"package_type\": \"personal\"}",
-    "{\"action\": \"update_preference\", \"timestamp\": \"2142-08-24T23:40:12Z\", \"recipient_id\": 21, \"personal_package\": true, \"marketing_package\": false}",
+    "{\"action\": \"update_preference\", \"timestamp\": \"2142-08-24T23:40:12Z\", \"recipient_id\": 21, \"personal_package\": false, \"marketing_package\": false}",
     "{\"action\": \"send_package\", \"timestamp\": \"2142-08-28T02:12:12+1230\", \"sender_id\": 8, \"recipient_id\": 21, \"package_id\": 6901, \"package_type\": \"marketing\"}",
     "{\"action\": \"send_package\", \"timestamp\": \"2142-08-24T02:23:12+0100\", \"sender_id\": 42, \"recipient_id\": 21, \"package_id\": 2834, \"package_type\": \"personal\"}",
     "{\"action\": \"send_package\", \"timestamp\": \"2142-09-01T02:45:12+0100\", \"sender_id\": 42, \"recipient_id\": 21, \"package_id\": 2834, \"package_type\": \"personal\"}",
-    "{\"action\": \"update_preference\", \"timestamp\": \"2142-08-24T23:40:12Z\", \"recipient_id\": 21, \"personal_package\": false, \"marketing_package\": false}",
-    "{\"action\": \"update_preference\", \"timestamp\": \"2142-08-24T23:40:12Z\", \"recipient_id\": 21, \"personal_package\": false, \"marketing_package\": false}",
-    "{\"action\": \"update_preference\", \"timestamp\": \"2142-08-24T23:40:12Z\", \"recipient_id\": 21, \"personal_package\": false, \"marketing_package\": false}",
 
 
 ]
@@ -159,15 +156,17 @@ class MessageServer:
         print(input)
 
     def _update_preference(self, input: dict) -> bool:
+        recipient_id = str(input.get('recipient_id'))
+
         recipient = {'id' : input.get('recipient_id')}
         if input.get('personal_package') is not None:
             recipient['personal_package'] = input.get('personal_package')
         if input.get('marketing_package') is not None:
             recipient['marketing_package'] = input.get('marketing_package')
 
-        if self._recipients.get(str(recipient['id']), None) is None:
-            self._recipients[str(recipient['id'])] = recipient
-        self._recipients[str(recipient['id'])].update(recipient)
+        if self._recipients.get(recipient_id, None) is None:
+            self._recipients[recipient_id] = recipient
+        self._recipients[recipient_id].update(recipient)
         
         if input not in self._packages:
             self._print_to_std(input)
@@ -185,9 +184,9 @@ class MessageServer:
         
         if input not in self._packages:
             recipient = self._recipients[recipient_id]
-            self._print_to_std(input)
+            if self._is_allowed_package(recipient, input):
+                self._print_to_std(input)
             self._packages.append(input)
-
 
     def process_input(self, input: str):
         json = self._validate_json(input)
@@ -195,6 +194,13 @@ class MessageServer:
             self._process_package(json)
         else:
             self._update_preference(json)
+
+    def _is_allowed_package(self,recipient: dict, request: dict) -> bool:
+        if recipient['marketing_package'] is True and request['package_type'] == 'marketing':
+            return True
+        if recipient['personal_package'] is True and request['package_type'] == 'personal':
+            return True
+        return False
 
 
 
