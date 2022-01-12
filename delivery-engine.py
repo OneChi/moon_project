@@ -62,7 +62,7 @@ PACKAGE_TYPES = ('marketing', 'personal')
 
 MAX_PACKAGE_COUNT = 10
 
-
+# Dataclasses for validation and re-use data
 @dataclass
 class Base:
     action: str  # send_package or update_preference
@@ -208,7 +208,7 @@ def server():
     start = time.time()
     server_instance = MessageServer()
     
-    
+    # for demonstration purpose only, i replace code from 212 line to input  TEST_DATA 
     # for line in stdin:
     for item in TEST_DATA:
         server_instance.process_input(item)
@@ -219,10 +219,9 @@ def server():
 
 if __name__ == '__main__':
     server()
-    # data = {'action': 'update_preference', 'timestamp': '12321', 'recipient_id': 1, 'personal_package' : True}
-    # update = UpdatePackage(**data)
-    # update.validate()
-    # print(asdict(update))
+    
+
+
 
 # unit testing
 # test 1
