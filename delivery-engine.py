@@ -2,7 +2,8 @@ from sys import stdin
 from dataclasses import dataclass, asdict
 from types import NoneType
 import typing
-
+import time
+import json
 
 # base_request has field
 # action - "send_package" or "update_package"
@@ -41,8 +42,24 @@ import typing
 
 # ·  able to handle a significant amount of packages
 
-ACTIONS = ('send_package', 'update_package')
-PACKAGE_TYPES = ('marketing', 'personal')
+# suggesion - add redis, asyncio/threadding
+
+
+TEST_DATA = [
+    '{"action": "send_package", "timestamp": "2142-08-23T02:40:12-0700", "sender_id": 5, "recipient_id": 21, "package_id": 18571, "package_type": "marketing"}',
+    '{"action": "send_package", "timestamp": "2142-08-24T16:20:12-0700", "sender_id": 3, "recipient_id": 49, "package_id": 1756, "package_type": "personal"}',
+    '{"action": "update_preference", "timestamp": "2142-08-24T23:40:12Z", "recipient_id": 21, "personal_package": true, "marketing_package": false}',
+    '{"action": "send_package", "timestamp": "2142-08-28T02:12:12+1230", "sender_id": 8, "recipient_id": 21, "package_id": 6901, "package_type": "marketing"}',
+    '{"action": "send_package", "timestamp": "2142-08-24T02:23:12+0100", "sender_id": 42, "recipient_id": 21, "package_id": 2834, "package_type": "personal"}',
+    '{"action": "send_package", "timestamp": "2142-09-01T02:45:12+0100", "sender_id": 42, "recipient_id": 21, "package_id": 2834, "package_type": "personal"}',
+]
+
+
+ACTIONS = ("send_package", "update_preference")
+PACKAGE_TYPES = ("marketing", "personal")
+
+MAX_PACKAGE_COUNT = 10
+
 
 @dataclass
 class Base:
@@ -61,11 +78,12 @@ class Base:
                 raise Exception(
                     f"{field_name}: '{type(actual_value)}' instead of '{field_def.type}'"
                 )
-            
-            if field_name == 'action':
+
+            if field_name == "action":
                 action = getattr(self, field_name)
                 if action not in ACTIONS:
-                    raise Exception('not in actions')
+                    raise Exception(f"{field_name}: <{actual_value}> not in actions")
+
 
 @dataclass
 class SendPackage(Base):
@@ -76,19 +94,20 @@ class SendPackage(Base):
 
     def validate(self):
         if self.package_type not in PACKAGE_TYPES:
-            raise Exception('package type is not valid')
+            raise Exception("package type is not valid")
         return super().validate()
 
-@dataclass(init=True,repr=False)
+
+@dataclass(init=True, repr=False)
 class UpdatePackage(Base):
     recipient_id: int
 
     AT_LEAST_ONE_REQUIRED_FIELDS = (
-        'personal_package',
-        'marketing_package',
+        "personal_package",
+        "marketing_package",
     )
 
-    personal_package : bool | NoneType = None
+    personal_package: bool | NoneType = None
     marketing_package: bool | NoneType = None
 
     def validate(self):
@@ -96,24 +115,53 @@ class UpdatePackage(Base):
         for item in self.AT_LEAST_ONE_REQUIRED_FIELDS:
             value = getattr(self, item)
             if value is None:
-                counter+=1
-            if  counter == len(self.AT_LEAST_ONE_REQUIRED_FIELDS):
-                raise Exception('At least one field required')
+                counter += 1
+            if counter == len(self.AT_LEAST_ONE_REQUIRED_FIELDS):
+                raise Exception("At least one field required")
         return super().validate()
 
 
-base = SendPackage("send_package", "sssr", 12,123,1234,'personal')
-base.validate()
-data = {'action': 'update_package', 'timestamp': '12321', 'recipient_id': 1}
-update = UpdatePackage(**data)
-update.validate()
-print(asdict(update))
+def validate_json(input: str) -> SendPackage | UpdatePackage:
+    loaded_json = json.loads(input)
+    print(loaded_json)
+    action_type = loaded_json.get("action", None)
+    if action_type is None:
+        raise Exception("Not valid action")
+    elif action_type == ACTIONS[0]:
+        return SendPackage(**loaded_json)
+    elif action_type == ACTIONS[1]:
+        return UpdatePackage(**loaded_json)
+    else:
+        raise Exception("Invalid action")
 
 
+@dataclass
+class Recipient:
+    id: int
+
+    personal_package: bool = True
+    marketing_package: bool = True
+
+    PERMISSIONS_FIELDS = ("personal_package", "marketing_package")
+
+
+def server():
+    start = time.time()
+
+    for item in TEST_DATA:
+        print(asdict(validate_json(item)))
+
+    # for line in stdin:
+
+    print(f"Processing took: {(time.time() - start):.2f} seconds")
+
+
+if __name__ == "__main__":
+    server()
 
 
 # unit testing
-# test 1 
+# test 1
 # send_package create incorrect value SendPackage("send_package", "sssr", 12,123,1234,'incorrect_value')
 # test 2
 # send_package create incorrect type SendPackage("send_package", "sssr", 12, 'incorrect type', 1234, 'personal')
