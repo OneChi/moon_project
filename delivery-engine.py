@@ -186,7 +186,7 @@ class MessageServer:
             recipient = self._recipients[recipient_id]
             if self._is_allowed_package(recipient, input):
                 self._print_to_std(input)
-            self._packages.append(input)
+                self._packages.append(input)
 
     def process_input(self, input: str):
         json = self._validate_json(input)
