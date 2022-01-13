@@ -47,7 +47,7 @@ import json
 
 
 TEST_DATA = [
-    "{\"action\": \"send_package\", \"timestamp\": \"2142-08-23T02:40:12-0700\", \"sender_id\": 5, \"recipient_id\": 21, \"package_id\": 18571, \"package_type\": \"marketing\"}",
+    "{\"action\": \"send_packages\", \"timestamp\": \"2142-08-23T02:40:12-0700\", \"sender_id\": 5, \"recipient_id\": 21, \"package_id\": 18571, \"package_type\": \"marketing\"}",
     "{\"action\": \"send_package\", \"timestamp\": \"2142-08-24T16:20:12-0700\", \"sender_id\": 3, \"recipient_id\": 49, \"package_id\": 1756, \"package_type\": \"personal\"}",
     "{\"action\": \"update_preference\", \"timestamp\": \"2142-08-24T23:40:12Z\", \"recipient_id\": 21, \"personal_package\": false, \"marketing_package\": false}",
     "{\"action\": \"send_package\", \"timestamp\": \"2142-08-28T02:12:12+1230\", \"sender_id\": 8, \"recipient_id\": 21, \"package_id\": 6901, \"package_type\": \"marketing\"}",
@@ -59,8 +59,6 @@ TEST_DATA = [
 
 ACTIONS = ('send_package', 'update_preference')
 PACKAGE_TYPES = ('marketing', 'personal')
-
-MAX_PACKAGE_COUNT = 10
 
 # Dataclasses for validation and re-use data
 @dataclass
@@ -138,7 +136,8 @@ class MessageServer:
     def __init__(self, *args, **kwargs):
         self._recipients = {}
         self._packages = []
-
+        self._dropped = 0
+        self._max_packages_count = kwargs.get('max_packages_count', 0)
     @staticmethod 
     def _validate_json(input: str) -> dict:
         loaded_json = json.loads(input)
@@ -171,8 +170,12 @@ class MessageServer:
         if input not in self._packages:
             self._print_to_std(input)
             self._packages.append(input)
+            return True
+        
+        self._dropped += 1
+        return False
 
-    def _process_package(self, input: dict):
+    def _process_package(self, input: dict) -> bool:
         recipient_id = str(input.get('recipient_id'))
         if self._recipients.get(recipient_id, None) is None:
             recipient = {
@@ -187,13 +190,25 @@ class MessageServer:
             if self._is_allowed_package(recipient, input):
                 self._print_to_std(input)
                 self._packages.append(input)
-
+                return True
+        self._dropped += 1
+        return False
+    
     def process_input(self, input: str):
-        json = self._validate_json(input)
-        if json.get('action') == ACTIONS[0]:
-            self._process_package(json)
-        else:
-            self._update_preference(json)
+        if self._max_packages_count <= 0:
+            self._dropped += 1
+            return
+
+        try:    
+            json = self._validate_json(input)
+            if json.get('action') == ACTIONS[0]:
+                ret = self._process_package(json)
+            else:
+                ret = self._update_preference(json)
+            if ret:
+                self._max_packages_count -= 1
+        except Exception:
+            self._dropped += 1
 
     def _is_allowed_package(self,recipient: dict, request: dict) -> bool:
         if recipient['marketing_package'] is True and request['package_type'] == 'marketing':
@@ -202,18 +217,19 @@ class MessageServer:
             return True
         return False
 
-
+    def results(self):
+        return {"packages_delivered": len(self._packages), "packages_dropped": self._dropped}
 
 def server():
     start = time.time()
-    server_instance = MessageServer()
+    server_instance = MessageServer(max_packages_count=2)
     
     # for demonstration purpose only, i replace code from 212 line to input  TEST_DATA 
-    # for line in stdin:
+    #for line in stdin:
     for item in TEST_DATA:
         server_instance.process_input(item)
 
-
+    print(server_instance.results())
     print(f'Processing took: {(time.time() - start):.2f} seconds')
 
 
