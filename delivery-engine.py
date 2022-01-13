@@ -5,46 +5,6 @@ import time
 import json
 import unittest
 
-# base_request has field
-# action - "send_package" or "update_preference"
-
-# # send_package has structure
-# sender_id: signed integer
-# recipient_id: signed integer
-# package_id: signed integer
-# package_type: 'marketing' or 'personal'
-# timestamp: str-timestamp like - "2142-08-23T02:40:12-0700"
-
-# # update_preference has structure
-# recipient_id signed integer
-
-# and at least one of fields
-# personal_package: bool
-# marketing_package: bool
-
-# Rules
-#  ·  Due to difficulty of interstellar communication, requests may be malformed or invalid. These requests should be dropped.
-
-#  ·  Due to difficulty sending packages, a sender may try resending the same
-# package multiple times. A send request is uniquely identified by package_id
-# that is constant between retries. The recipient should receive the package at
-# most one time despite multiple attempts.
-
-# ·  A recipient who has declined to receive a package type should not get that
-# package. By default, receipients can receive every package type.
-
-
-# Other Requirements
-
-# ·  unit tested
-
-# ·  extensible in case we want to deliver different package types
-
-# ·  able to handle a significant amount of packages
-
-# suggesion - add redis, asyncio/threadding
-
-
 TEST_DATA = [
     "{\"action\": \"send_package\", \"timestamp\": \"2142-08-23T02:40:12-0700\", \"sender_id\": 5, \"recipient_id\": 21, \"package_id\": 18571, \"package_type\": \"marketing\"}",
     "{\"action\": \"send_package\", \"timestamp\": \"2142-08-24T16:20:12-0700\", \"sender_id\": 3, \"recipient_id\": 49, \"package_id\": 1756, \"package_type\": \"personal\"}",
